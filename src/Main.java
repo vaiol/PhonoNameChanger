@@ -1,75 +1,69 @@
-
-import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.Directory;
-import com.drew.metadata.Metadata;
-import com.drew.metadata.Tag;
-
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
 
 
 public class Main {
 
     public static void main(String[] args) {
+        Date dateBefore = new Date();
         System.out.println("---- START ----");
         String name = "IMG";
-        if(args.length != 0) {
+        if (args.length != 0) {
             name = args[0];
         }
-         make(name);
+        make(name);
+
         System.out.println("---- END ----");
+        Date dateAfter = new Date();
+        System.out.println("Time: " + ((dateAfter.getTime() - dateBefore.getTime()) / 1000.0) + " sec.");
 
     }
 
     public static void make(String surName) {
 
         String currDir = new File("").getAbsolutePath();
-        File[] files = new File(currDir).listFiles(new ImageNameFilter());
-        if(files == null) {
+        ImageFile[] files = getArraysImageFiles(new File(currDir).listFiles(new ImageNameFilter()));
+        if (files == null) {
             return;
         }
 
-        for(int i = 0; i < files.length - 1; i++) {
-            for (int j = 0; j < files.length - i - 1; j++) {
-                if (getTimeLong(files[j]) > getTimeLong(files[j + 1])) {
-                    File tmp = files[j];
-                    files[j] = files[j + 1];
-                    files[j + 1] = tmp;
-                }
-            }
-            System.out.println(files[i]);
-        }
+        files = sort(files);
 
         int i = 1;
         //String backup = "";
-        for (File file : files) {
+        for (ImageFile file : files) {
             //backup += file.getName() + "\n";
-            String name = surName + "_" + trimNumber(i) + "." + getExecute(file.getName());
-            file.renameTo(new File(name));
+            System.out.println(file.getFile().getName());
+            String name = surName + "_" + trimNumber(i) + "." + getExecute(file.getFile().getName());
+            file.getFile().renameTo(new File(name));
             i++;
         }
         //write("backup.data", backup);
     }
 
+    private static ImageFile[] getArraysImageFiles(File[] files) {
+        ImageFile[] imageFiles = new ImageFile[files.length];
+        int i = 0;
+        for (File file : files) {
+            imageFiles[i] = new ImageFile(file);
+            i++;
+        }
+        return imageFiles;
+    }
+
     private static String getExecute(String name) {
         String[] result = name.split("\\.");
-        if(result.length > 0) {
+        if (result.length > 0) {
             return result[result.length - 1];
         }
         return "";
     }
 
     private static String trimNumber(int i) {
-        if(i < 0) {
+        if (i < 0) {
             i *= -1;
         }
-        if (i >= 10000) {
-            return i + "";
-        }
-        String number = i +"";
+        String number = i + "";
         switch (number.length()) {
             case 1:
                 number = "000" + number;
@@ -89,41 +83,91 @@ public class Main {
 
 
 
-    private static String getMetaTime(Metadata metadata)
-    {
-        for (Directory directory : metadata.getDirectories()) {
-            for (Tag tag : directory.getTags()) {
-                if(tag.getTagName().contains("Date/Time")) {
-                    return tag.getDescription();
-                }
+
+    public static ImageFile[] sort(ImageFile[] values) {
+        // check for empty or null array
+        if (values == null || values.length == 0) {
+            return null;
+        }
+        return quicksort(values, 0, values.length - 1);
+    }
+
+    private static ImageFile[] quicksort(ImageFile[] files, int low, int high) {
+        int i = low, j = high;
+        // Get the pivot element from the middle of the list
+        ImageFile pivot = files[low + (high - low) / 2];
+
+        // Divide into two lists
+        while (i <= j) {
+            // If the current value from the left list is smaller then the pivot
+            // element then get the next element from the left list
+            while (files[i].getCreationTime() < pivot.getCreationTime()) {
+                i++;
+            }
+            // If the current value from the right list is larger then the pivot
+            // element then get the next element from the right list
+            while (files[j].getCreationTime() > pivot.getCreationTime()) {
+                j--;
+            }
+
+            // If we have found a values in the left list which is larger then
+            // the pivot element and if we have found a value in the right list
+            // which is smaller then the pivot element then we exchange the
+            // values.
+            // As we are done we can increase i and j
+            if (i <= j) {
+                exchange(files, i, j);
+                i++;
+                j--;
             }
         }
-        return null;
+        // Recursion
+        if (low < j)
+            quicksort(files, low, j);
+        if (i < high)
+            quicksort(files, i, high);
+        return files;
     }
 
-    private static long getTimeLong(File file) {
-        try {
-            Metadata metadata = ImageMetadataReader.readMetadata(file);
-            String sd = getMetaTime(metadata);
-           // print(metadata);
-            if(sd != null) {
-                SimpleDateFormat format = new SimpleDateFormat("yyyy:MM:DD HH:mm:ss");
-                Date date = format.parse(sd);
-                return date.getTime();
-            }
-        } catch (Exception e) {
-        }
-        return getFileCreateTime(file);
+    private static ImageFile[] exchange(ImageFile[] files, int i, int j) {
+        ImageFile temp = files[i];
+        files[i] = files[j];
+        files[j] = temp;
+        return files;
     }
 
-
-    public static long getFileCreateTime(File file) {
-        try {
-            return Files.readAttributes(file.toPath(), BasicFileAttributes.class).creationTime().toMillis();
-        } catch (IOException e) {
-            return -1;
-        }
-    }
+//    private static String getParseTime(File file) {
+//        String result = null;
+//        try {
+//            result = download(file.getAbsolutePath());
+//        } catch (Exception e) {
+//        }
+//        return result;
+//    }
+//    public static String download(String path) {
+//        StringBuilder result = new StringBuilder();
+//        File file = new File(path);
+//
+//        try {
+//            BufferedReader in = new BufferedReader(new FileReader( file.getAbsoluteFile()));
+//            try {
+//                String s;
+//                while ((s = in.readLine()) != null) {
+//                    result.append(s);
+//                    result.append("\n");
+//                }
+//            } finally {
+//                in.close();
+//            }
+//        } catch(IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//        return result.toString();
+//    }
+//
+//
+//
+//
 //
 //    public static void write(String fileName, String text) {
 //        File file = new File(fileName);
@@ -153,3 +197,4 @@ public class Main {
 //        System.out.println("-------------------------------------");
 //    }
 }
+

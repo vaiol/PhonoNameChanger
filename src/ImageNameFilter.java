@@ -13,7 +13,7 @@ public class ImageNameFilter implements FilenameFilter {
     }
 
     private static boolean isImage(String name) {
-        Pattern p = Pattern.compile(".+\\.(jpg|png|bmp|jpeg)");
+        Pattern p = Pattern.compile(    ".+\\.(jpg|png|bmp|jpeg)"    );
         Matcher m = p.matcher(name.toLowerCase());
         return m.matches();
     }
